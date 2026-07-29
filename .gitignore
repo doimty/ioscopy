@@ -1,0 +1,8 @@
+.tmp/
+implementation_plan.md
+remote_debug_build_install.ps1
+.theos/
+packages/
+*.txt
+.DS_*
+optimi*.md

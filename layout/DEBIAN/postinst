@@ -1,0 +1,11 @@
+#!/bin/sh
+
+killall -9 pasted 2>/dev/null || true
+
+OCRD_PLIST="/var/jb/Library/LaunchDaemons/com.ssdsl.ioscopy.ocrd.plist"
+if [ -f "$OCRD_PLIST" ]; then
+  launchctl unload "$OCRD_PLIST" 2>/dev/null || true
+  launchctl load "$OCRD_PLIST" 2>/dev/null || true
+fi
+
+exit 0

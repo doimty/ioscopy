@@ -1,0 +1,26 @@
+include $(THEOS)/makefiles/common.mk
+
+DEBUG_LOG ?= 0
+IOSCOPY_FORCE_REAL_PREFERENCES_PATH ?= 0
+
+TOOL_NAME = iOSCopyOCRWorker
+
+iOSCopyOCRWorker_FILES = main.m \
+	../Shared/PBLocalization.m \
+	../Manager/PBImageOCRIndexer.m \
+	../Manager/PBStorageManager.m \
+	../Model/PBClipboardItem.m
+
+ifeq ($(DEBUG_LOG),1)
+iOSCopyOCRWorker_FILES += \
+	../Shared/PBDiagnosticLogger.m
+endif
+
+iOSCopyOCRWorker_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DDEBUG_LOG=$(DEBUG_LOG) -DIOSCOPY_FORCE_REAL_PREFERENCES_PATH=$(IOSCOPY_FORCE_REAL_PREFERENCES_PATH)
+iOSCopyOCRWorker_FRAMEWORKS = Foundation CoreGraphics ImageIO Vision
+iOSCopyOCRWorker_LIBRARIES = sqlite3
+iOSCopyOCRWorker_CODESIGN_FLAGS = -Sentitlements.plist
+iOSCopyOCRWorker_INSTALL_PATH = /usr/local/bin
+
+include $(THEOS_MAKE_PATH)/tool.mk
+

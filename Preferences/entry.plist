@@ -1,0 +1,10 @@
+{
+    entry = {
+        bundle = "iOSCopyPrefs";
+        cell = "PSLinkCell";
+        detail = "PBRootListController";
+        icon = "icon.png";
+        isController = 1;
+        label = "iOSCopy";
+    };
+}
