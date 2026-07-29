@@ -66,8 +66,7 @@ static BOOL PBPathLooksLikeSystemOrJailbreakPath(NSString *path) {
            [standardizedPath hasPrefix:@"/bin/"] ||
            [standardizedPath hasPrefix:@"/sbin/"] ||
            [standardizedPath hasPrefix:@"/applications/"] ||
-           [standardizedPath hasPrefix:@"/private/var/jb/"] ||
-           [standardizedPath hasPrefix:@"/var/jb/"];
+           PBIOSCopyPathIsInsideJailbreakRoot(standardizedPath);
 }
 
 static BOOL PBInputBridgeCurrentProcessShouldUseLibSandy(void) {
@@ -106,8 +105,10 @@ typedef bool (*PBLibSandyWorksFunction)(void);
 static void *PBInputBridgeOpenLibSandy(void) {
     void *handle = dlopen("@rpath/libsandy.dylib", RTLD_LAZY | RTLD_LOCAL);
     if (!handle) {
-        handle = dlopen(ROOT_PATH("/usr/lib/libsandy.dylib"),
-                        RTLD_LAZY | RTLD_LOCAL);
+        NSString *path = PBIOSCopyJailbreakPath(@"/usr/lib/libsandy.dylib");
+        if (path.length > 0) {
+            handle = dlopen(path.fileSystemRepresentation, RTLD_LAZY | RTLD_LOCAL);
+        }
     }
     return handle;
 }
@@ -394,7 +395,7 @@ static UIImage *PBKeyboardLogoImage(void) {
     static UIImage *image = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        NSString *path = ROOT_PATH_NS(@"/Library/Application Support/iOSCopy/Ressources.bundle/keyboardlogo.png");
+        NSString *path = PBIOSCopyJailbreakPath(@"/Library/Application Support/iOSCopy/Ressources.bundle/keyboardlogo.png");
         image = [UIImage imageWithContentsOfFile:path];
         if (!image) {
             UIImageSymbolConfiguration *configuration =
@@ -774,8 +775,12 @@ static BOOL PBIsDockXCopyLogDylibPath(NSString *path) {
         return NO;
     }
 
-    return [path isEqualToString:@"/Library/MobileSubstrate/DynamicLibraries/CopyLog.dylib"] ||
-           [path isEqualToString:@"/var/jb/Library/MobileSubstrate/DynamicLibraries/CopyLog.dylib"];
+    NSString *logicalPath = @"/Library/MobileSubstrate/DynamicLibraries/CopyLog.dylib";
+    NSString *standardPath = path.stringByStandardizingPath;
+    NSString *jailbreakPath = PBIOSCopyJailbreakPath(logicalPath);
+    jailbreakPath = jailbreakPath.stringByStandardizingPath;
+    return [standardPath isEqualToString:logicalPath] ||
+           [standardPath isEqualToString:jailbreakPath];
 }
 
 static void PBRecordEditableResponderIfPossible(id responder) {

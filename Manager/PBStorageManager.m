@@ -1,4 +1,5 @@
 #import "PBStorageManager.h"
+#import "../Shared/PBPathUtilities.h"
 #import <sqlite3.h>
 #import <rootless.h>
 
@@ -6,7 +7,7 @@
 #import "../Shared/PBDiagnosticLogger.h"
 #endif
 
-#define kDatabaseDirectory ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy")
+#define kDatabaseDirectory PBIOSCopyDataDirectoryPath()
 static NSString * const kDatabaseName = @"clipboard.db";
 
 #if DEBUG_LOG
@@ -207,8 +208,8 @@ static NSString * const kDatabaseName = @"clipboard.db";
 
     NSString *standardPath = [path stringByStandardizingPath];
     NSArray<NSString *> *directories = @[
-        [ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/images") stringByStandardizingPath],
-        [ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/thumbnails") stringByStandardizingPath]
+        [PBIOSCopyDataPath(@"images") stringByStandardizingPath],
+        [PBIOSCopyDataPath(@"thumbnails") stringByStandardizingPath]
     ];
 
     for (NSString *directory in directories) {

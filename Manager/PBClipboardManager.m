@@ -37,7 +37,7 @@ static void PBSetInternalPasteboardRead(BOOL allowed) {
 }
 
 static NSString *PBOCRWorkerRequestPath(void) {
-    return ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/ocr-request.plist");
+    return PBIOSCopyDataPath(@"ocr-request.plist");
 }
 
 #if DEBUG_LOG
@@ -1715,8 +1715,8 @@ static void ocrIndexUpdated(CFNotificationCenterRef center,
     NSString *imageFilename = [NSString stringWithFormat:@"image_%@.%@", fileIdentifier, imageExtension];
     NSString *thumbFilename = [NSString stringWithFormat:@"thumb_%@.jpg", fileIdentifier];
 
-    NSString *imageDir = ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/images");
-    NSString *thumbDir = ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/thumbnails");
+    NSString *imageDir = PBIOSCopyDataPath(@"images");
+    NSString *thumbDir = PBIOSCopyDataPath(@"thumbnails");
     NSFileManager *fm = [NSFileManager defaultManager];
     if (![fm fileExistsAtPath:imageDir]) {
         NSError *imageDirError = nil;
@@ -2032,8 +2032,8 @@ static void ocrIndexUpdated(CFNotificationCenterRef center,
     [[PBStorageManager sharedManager] deleteAllItems];
     NSFileManager *fm = [NSFileManager defaultManager];
     NSArray<NSString *> *directories = @[
-        ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/images"),
-        ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/thumbnails")
+        PBIOSCopyDataPath(@"images"),
+        PBIOSCopyDataPath(@"thumbnails")
     ];
     for (NSString *directory in directories) {
         [fm removeItemAtPath:directory error:nil];

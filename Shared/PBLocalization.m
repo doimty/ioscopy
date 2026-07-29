@@ -1,4 +1,5 @@
 #import "PBLocalization.h"
+#import "PBPathUtilities.h"
 #import <rootless.h>
 
 static NSBundle *PBLocalizationBundle(void) {
@@ -16,8 +17,8 @@ static NSBundle *PBLocalizationBundle(void) {
         }
 
         NSArray<NSString *> *candidatePaths = @[
-            ROOT_PATH_NS(@"/Library/PreferenceBundles/iOSCopyPrefs.bundle"),
-            ROOT_PATH_NS(@"/Library/Application Support/iOSCopy/Ressources.bundle")
+            PBIOSCopyJailbreakPath(@"/Library/PreferenceBundles/iOSCopyPrefs.bundle"),
+            PBIOSCopyJailbreakPath(@"/Library/Application Support/iOSCopy/Ressources.bundle")
         ];
         for (NSString *path in candidatePaths) {
             NSBundle *candidate = [NSBundle bundleWithPath:path];

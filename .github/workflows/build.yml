@@ -1,0 +1,133 @@
+name: Build iOSCopy packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/roothide-adaptation
+      - main
+      - master
+    paths:
+      - '.github/workflows/build.yml'
+      - '**/*.h'
+      - '**/*.m'
+      - '**/*.xm'
+      - '**/*.plist'
+      - 'Makefile'
+      - 'control'
+      - 'layout/**'
+      - 'scripts/**'
+
+jobs:
+  package:
+    name: Package (${{ matrix.scheme }})
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: rootless
+            expected_arch: iphoneos-arm64
+            expected_sdk: '16.5'
+            artifact_name: ioscopy-rootless-packages
+          - scheme: roothide
+            expected_arch: iphoneos-arm64e
+            expected_sdk: '17.5'
+            artifact_name: ioscopy-roothide-packages
+
+    env:
+      THEOS: ${{ github.workspace }}/theos
+      THEOS_PACKAGE_SCHEME: ${{ matrix.scheme }}
+      FINALPACKAGE: '1'
+      PREFIX: /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Select pinned Xcode 15.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+          xcode_version="$(xcodebuild -version)"
+          test "${xcode_version%%$'\n'*}" = "Xcode 15.4"
+          test "$(xcrun --sdk iphoneos --show-sdk-version)" = "17.5"
+          printf '%s\n' "$xcode_version"
+          xcrun clang --version
+          xcrun ld -version_details
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install packaging tools
+        run: |
+          brew update
+          brew install dpkg ldid make
+
+      - name: Install pinned roothide Theos
+        run: |
+          git init "$THEOS"
+          git -C "$THEOS" remote add origin https://github.com/roothide/theos.git
+          git -C "$THEOS" fetch --depth 1 origin 88506b2c22e9e07dd4ed055f23c9e398a117a2c7
+          git -C "$THEOS" checkout --detach FETCH_HEAD
+          test "$(git -C "$THEOS" rev-parse HEAD)" = "88506b2c22e9e07dd4ed055f23c9e398a117a2c7"
+          git -C "$THEOS" submodule sync --recursive
+          git -C "$THEOS" submodule update --init --recursive
+          test -z "$(git -C "$THEOS" submodule status --recursive | grep '^[+-]' || true)"
+
+      - name: Install pinned iPhoneOS 16.5 SDK
+        run: |
+          git init /tmp/theos-sdks
+          git -C /tmp/theos-sdks remote add origin https://github.com/theos/sdks.git
+          git -C /tmp/theos-sdks sparse-checkout init --cone
+          git -C /tmp/theos-sdks sparse-checkout set iPhoneOS16.5.sdk
+          git -C /tmp/theos-sdks fetch --depth 1 origin 0222fd5413cf4b9af096f37b4621afa2688572f7
+          git -C /tmp/theos-sdks checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/theos-sdks rev-parse HEAD)" = "0222fd5413cf4b9af096f37b4621afa2688572f7"
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+
+      - name: Build package
+        env:
+          PACKAGE_SCHEME: ${{ matrix.scheme }}
+        run: |
+          set -o pipefail
+          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
+          if [[ "$PACKAGE_SCHEME" == "roothide" ]]; then
+            sysroot="$(xcrun --sdk iphoneos --show-sdk-path)"
+            target="iphone:clang:17.5:15.0"
+            private_frameworks="$THEOS/sdks/iPhoneOS16.5.sdk/System/Library/PrivateFrameworks"
+          else
+            sysroot="$THEOS/sdks/iPhoneOS16.5.sdk"
+            target="iphone:clang:16.5:15.0"
+            private_frameworks=""
+          fi
+          test -d "$sysroot"
+          make clean \
+            THEOS_PACKAGE_SCHEME="$PACKAGE_SCHEME" \
+            TARGET="$target" \
+            SYSROOT="$sysroot"
+          make package FINALPACKAGE=1 \
+            THEOS_PACKAGE_SCHEME="$PACKAGE_SCHEME" \
+            TARGET="$target" \
+            SYSROOT="$sysroot" \
+            IOSCOPY_PRIVATE_FRAMEWORKS_DIR="$private_frameworks" \
+            2>&1 | tee "/tmp/ioscopy-$PACKAGE_SCHEME-build.log"
+
+      - name: Verify build log and package
+        env:
+          PACKAGE_SCHEME: ${{ matrix.scheme }}
+          EXPECTED_SDK: ${{ matrix.expected_sdk }}
+          EXPECTED_ARCH: ${{ matrix.expected_arch }}
+        run: |
+          log="/tmp/ioscopy-$PACKAGE_SCHEME-build.log"
+          test -s "$log"
+          ! grep -qi 'incompatible arm64e' "$log"
+          test "$(find packages -maxdepth 1 -name '*.deb' | wc -l | tr -d ' ')" = "1"
+          deb="$(find packages -maxdepth 1 -name '*.deb' -print -quit)"
+          test "$(dpkg-deb -f "$deb" Architecture)" = "$EXPECTED_ARCH"
+          scripts/verify-package.sh "$PACKAGE_SCHEME" "$EXPECTED_SDK" "$deb"
+
+      - name: Upload package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: packages/*.deb
+          if-no-files-found: error

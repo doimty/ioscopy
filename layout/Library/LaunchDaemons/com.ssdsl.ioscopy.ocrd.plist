@@ -9,7 +9,7 @@
   <string>com.ssdsl.ioscopy.ocrd</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/var/jb/usr/local/bin/iOSCopyOCRWorker</string>
+    <string>/usr/local/bin/iOSCopyOCRWorker</string>
     <string>--daemon</string>
   </array>
   <key>RunAtLoad</key>

@@ -29,16 +29,48 @@ static inline BOOL PBIOSCopyIsRoothideRuntime(void) {
            [prefix containsString:@".jbroot-"];
 }
 
-static inline NSString *PBIOSCopyRootlessPreferencesDirectoryPath(void) {
+static inline BOOL PBIOSCopyPathIsInsideJailbreakRoot(NSString *path) {
+    NSString *standardPath = path.stringByStandardizingPath.lowercaseString ?: @"";
+    NSString *rawPrefix = PBIOSCopyJailbreakRootPrefix();
+    NSString *standardPrefix = rawPrefix.stringByStandardizingPath.lowercaseString ?: @"";
+    if (standardPath.length == 0 || standardPrefix.length <= 1) {
+        return NO;
+    }
+
+    NSMutableArray<NSString *> *prefixes = [NSMutableArray arrayWithObject:standardPrefix];
+    if ([standardPrefix hasPrefix:@"/var/"]) {
+        [prefixes addObject:[@"/private" stringByAppendingString:standardPrefix]];
+    }
+
+    for (NSString *prefix in prefixes) {
+        NSString *directoryPrefix = [prefix hasSuffix:@"/"]
+            ? prefix
+            : [prefix stringByAppendingString:@"/"];
+        if ([standardPath isEqualToString:prefix] ||
+            [standardPath hasPrefix:directoryPrefix]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static inline NSString *PBIOSCopyJailbreakPath(NSString *logicalPath) {
+    if (logicalPath.length == 0) {
+        return @"";
+    }
 #if TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
-    NSString *path = JBROOT_PATH_NSSTRING(@"/var/mobile/Library/Preferences");
-    if (path.length > 0) {
-        return path;
+    NSString *runtimePath = JBROOT_PATH_NSSTRING(logicalPath);
+    if (runtimePath.length > 0) {
+        return runtimePath;
     }
 #endif
 
     NSString *prefix = @THEOS_PACKAGE_INSTALL_PREFIX;
-    return [prefix stringByAppendingString:@"/var/mobile/Library/Preferences"];
+    return [prefix stringByAppendingString:logicalPath];
+}
+
+static inline NSString *PBIOSCopyRootlessPreferencesDirectoryPath(void) {
+    return PBIOSCopyJailbreakPath(@"/var/mobile/Library/Preferences");
 }
 
 static inline NSString *PBIOSCopyPreferencesDirectoryPath(void) {
@@ -59,6 +91,23 @@ static inline NSString *PBIOSCopyPreferencesDirectoryPath(void) {
 static inline NSString *PBIOSCopyPreferenceFilePath(NSString *fileName) {
     return [PBIOSCopyPreferencesDirectoryPath()
         stringByAppendingPathComponent:fileName ?: @""];
+}
+
+static inline NSString *PBIOSCopyDataDirectoryPath(void) {
+    static NSString *path = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        path = [PBIOSCopyJailbreakPath(@"/var/mobile/Library/iOSCopy") copy];
+    });
+    return path ?: @"";
+}
+
+static inline NSString *PBIOSCopyDataPath(NSString *relativePath) {
+    NSString *base = PBIOSCopyDataDirectoryPath();
+    if (base.length == 0) {
+        return @"";
+    }
+    return [base stringByAppendingPathComponent:relativePath ?: @""];
 }
 
 static inline NSString *PBIOSCopyMainPreferencesPath(void) {

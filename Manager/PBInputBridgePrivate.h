@@ -102,7 +102,7 @@ static inline NSString *PBInputBridgeSpringBoardReadAuthorizationPath(void) {
 }
 
 static inline NSString *PBInputBridgeUniversalInboxDirectoryPath(void) {
-  return ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/universal-inbox");
+  return PBIOSCopyDataPath(@"universal-inbox");
 }
 
 static inline NSString *PBInputBridgeUniversalInboxDedupPath(void) {

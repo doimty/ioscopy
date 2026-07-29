@@ -1,4 +1,5 @@
 #import "../Manager/PBImageOCRIndexer.h"
+#import "../Shared/PBPathUtilities.h"
 #import <Foundation/Foundation.h>
 #import <rootless.h>
 #import <notify.h>
@@ -24,7 +25,7 @@ static NSInteger PBOCRWorkerLimitFromArguments(NSArray<NSString *> *arguments) {
 }
 
 static NSString *PBOCRWorkerRequestPath(void) {
-    return ROOT_PATH_NS(@"/var/mobile/Library/iOSCopy/ocr-request.plist");
+    return PBIOSCopyDataPath(@"ocr-request.plist");
 }
 
 static NSDictionary *PBOCRWorkerRequest(void) {
