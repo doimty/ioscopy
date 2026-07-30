@@ -57,6 +57,9 @@ endif
 iOSCopy_FRAMEWORKS = UIKit CoreGraphics QuartzCore ImageIO
 iOSCopy_PRIVATE_FRAMEWORKS =
 iOSCopy_LIBRARIES = sqlite3
+ifeq ($(IOSCOPY_SUPPRESS_MACRO_REDEFINED),1)
+iOSCopy_LIBRARIES += root
+endif
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
