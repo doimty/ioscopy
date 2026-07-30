@@ -52,7 +52,7 @@ endif
 
 iOSCopy_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DDEBUG_LOG=$(DEBUG_LOG) -DIOSCOPY_FORCE_REAL_PREFERENCES_PATH=$(IOSCOPY_FORCE_REAL_PREFERENCES_PATH)
 ifeq ($(IOSCOPY_SUPPRESS_MACRO_REDEFINED),1)
-iOSCopy_CFLAGS += -Wno-macro-redefined
+iOSCopy_CFLAGS += -Wno-macro-redefined -Wno-ambiguous-macro
 endif
 iOSCopy_FRAMEWORKS = UIKit CoreGraphics QuartzCore ImageIO
 iOSCopy_PRIVATE_FRAMEWORKS =

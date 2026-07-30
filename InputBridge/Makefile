@@ -21,7 +21,7 @@ endif
 
 iOSCopyInputBridge_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DDEBUG_LOG=$(DEBUG_LOG) -DIOSCOPY_FORCE_REAL_PREFERENCES_PATH=$(IOSCOPY_FORCE_REAL_PREFERENCES_PATH) -DIOSCOPY_INPUTBRIDGE_TWEAK=1
 ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
-iOSCopyInputBridge_CFLAGS += -Wno-macro-redefined
+iOSCopyInputBridge_CFLAGS += -Wno-macro-redefined -Wno-ambiguous-macro
 endif
 iOSCopyInputBridge_FRAMEWORKS = UIKit
 

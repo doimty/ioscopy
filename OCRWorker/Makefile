@@ -18,7 +18,7 @@ endif
 
 iOSCopyOCRWorker_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DDEBUG_LOG=$(DEBUG_LOG) -DIOSCOPY_FORCE_REAL_PREFERENCES_PATH=$(IOSCOPY_FORCE_REAL_PREFERENCES_PATH)
 ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
-iOSCopyOCRWorker_CFLAGS += -Wno-macro-redefined
+iOSCopyOCRWorker_CFLAGS += -Wno-macro-redefined -Wno-ambiguous-macro
 endif
 iOSCopyOCRWorker_FRAMEWORKS = Foundation CoreGraphics ImageIO Vision
 iOSCopyOCRWorker_LIBRARIES = sqlite3
