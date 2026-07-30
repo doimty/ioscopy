@@ -50,8 +50,18 @@ The runtime source is mostly relocatable already because `rootless.h` resolves j
 - [x] Implement dual-scheme build configuration.
 - [x] Implement scheme-aware OCR launch configuration.
 - [x] Remove fixed rootless-only runtime comparisons.
-- [ ] Add pinned cloud build and package verification.
-- [ ] Complete final evidence bundle.
+- [x] Add pinned cloud build and package verification.
+- [x] Complete final evidence bundle.
+
+## Cloud build result (2026-07-30)
+
+- **Run**: `30503306286`, commit `b1cff5f`
+- **Both rootless and roothide succeeded** ✅
+- No `incompatible arm64e` warnings in cloud logs
+- `verify-package.sh` passed for both schemes
+- Artifacts: `ioscopy-rootless-packages`, `ioscopy-roothide-packages`
+- Roothide package SHA256: `a2f4df1890e55c25d474534d55eb59729a0abac74e9acff64704718a5b0d3e2e`
+- Package delivered to user
 
 ## Build hook fix (2026-07-30)
 
