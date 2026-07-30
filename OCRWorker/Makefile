@@ -24,6 +24,9 @@ iOSCopyOCRWorker_FRAMEWORKS = Foundation CoreGraphics ImageIO Vision
 iOSCopyOCRWorker_LIBRARIES = sqlite3
 iOSCopyOCRWorker_CODESIGN_FLAGS = -Sentitlements.plist
 iOSCopyOCRWorker_INSTALL_PATH = /usr/local/bin
+ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
+iOSCopyOCRWorker_LDFLAGS += -Wl,-undefined,dynamic_lookup
+endif
 
 include $(THEOS_MAKE_PATH)/tool.mk
 

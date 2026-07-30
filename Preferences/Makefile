@@ -17,6 +17,9 @@ iOSCopyPrefs_CFLAGS = -fobjc-arc -DIOSCOPY_FORCE_REAL_PREFERENCES_PATH=$(IOSCOPY
 ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
 iOSCopyPrefs_CFLAGS += -Wno-macro-redefined -Wno-ambiguous-macro
 endif
+ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
+iOSCopyPrefs_LDFLAGS += -Wl,-undefined,dynamic_lookup
+endif
 ifneq ($(strip $(IOSCOPY_PRIVATE_FRAMEWORKS_DIR)),)
 iOSCopyPrefs_LDFLAGS += -F$(IOSCOPY_PRIVATE_FRAMEWORKS_DIR)
 endif

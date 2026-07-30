@@ -24,5 +24,8 @@ ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
 iOSCopyInputBridge_CFLAGS += -Wno-macro-redefined -Wno-ambiguous-macro
 endif
 iOSCopyInputBridge_FRAMEWORKS = UIKit
+ifeq ($(IOSCOPY_FORCE_REAL_PREFERENCES_PATH),1)
+iOSCopyInputBridge_LDFLAGS += -Wl,-undefined,dynamic_lookup
+endif
 
 include $(THEOS_MAKE_PATH)/tweak.mk
