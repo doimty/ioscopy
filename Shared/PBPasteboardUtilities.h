@@ -1,5 +1,9 @@
 #import <Foundation/Foundation.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Pasteboard type classification
 BOOL PBPasteboardTypeLooksImage(NSString *type);
 BOOL PBPasteboardTypeLooksHTML(NSString *type);
@@ -19,3 +23,7 @@ NSString *PBPlainTextFromHTMLString(NSString *html);
 
 // Process identification
 BOOL PBIsSpringBoardProcess(NSString *processName, NSString *bundleId);
+
+#ifdef __cplusplus
+}
+#endif
