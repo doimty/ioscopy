@@ -28,6 +28,7 @@ TWEAK_NAME = iOSCopy
 
 iOSCopy_FILES = Tweak.xm \
 	Shared/PBLocalization.m \
+	Shared/PBPasteboardUtilities.m \
 	Manager/PBInputBridge.m \
 	Manager/PBInputBridgeRequestClient.m \
 	Manager/PBInputBridgeSourceState.m \

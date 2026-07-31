@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "../Manager/PBInputBridge.h"
+#import "../Shared/PBPasteboardUtilities.h"
 #import "../Shared/PBPathUtilities.h"
 #import "../Shared/PBPreferenceKeys.h"
 #import <dlfcn.h>
@@ -765,11 +766,6 @@ static void PBRefreshKeyboardViewTriggers(UIView *view) {
     PBApplyDictationLogoInViewTree(view);
 }
 
-static BOOL PBIsSpringBoardProcess(NSString *processName, NSString *bundleId) {
-    return [bundleId isEqualToString:@"com.apple.springboard"] ||
-           [processName isEqualToString:@"SpringBoard"];
-}
-
 static BOOL PBIsDockXCopyLogDylibPath(NSString *path) {
     if (![path isKindOfClass:[NSString class]]) {
         return NO;
@@ -831,6 +827,9 @@ static void PBLogPasteboardSetter(NSString *selectorName, id pasteboard) {
 #define PBLogPasteboardSetter(...) do { } while (0)
 #endif
 
+// Returns an empty NSData sentinel to indicate "image present, data not copied here."
+// The actual image bytes are pulled later by the SpringBoard capture path.
+// Do NOT interpret a return of [NSData data] as a read failure — nil means failure.
 static NSData *PBImageMarkerFromImage(UIImage *image) {
     if (![image isKindOfClass:[UIImage class]]) {
         return nil;
@@ -851,158 +850,6 @@ static NSString *PBTextFromObject(id object) {
         return text.length > 0 ? text : nil;
     }
     return nil;
-}
-
-static BOOL PBPasteboardTypeLooksText(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return ![lower containsString:@"html"] &&
-           ([lower containsString:@"text"] ||
-            [lower containsString:@"string"] ||
-            [lower containsString:@"utf8"] ||
-            [lower containsString:@"url"]);
-}
-
-static BOOL PBPasteboardTypeLooksImage(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower containsString:@"image"] ||
-           [lower containsString:@"png"] ||
-           [lower containsString:@"jpeg"] ||
-           [lower containsString:@"jpg"] ||
-           [lower containsString:@"heic"] ||
-           [lower containsString:@"heif"] ||
-           [lower containsString:@"tiff"] ||
-           [lower containsString:@"gif"];
-}
-
-static BOOL PBPasteboardTypeLooksHTML(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower containsString:@"html"];
-}
-
-static BOOL PBPasteboardTypeLooksPlainText(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower isEqualToString:@"public.utf8-plain-text"] ||
-           [lower isEqualToString:@"public.plain-text"] ||
-           [lower isEqualToString:@"public.text"] ||
-           [lower containsString:@"plain-text"] ||
-           [lower containsString:@"utf8-plain-text"] ||
-           ([lower containsString:@"text"] && ![lower containsString:@"html"]);
-}
-
-static NSString *PBTextFromData(NSData *data) {
-    if (![data isKindOfClass:[NSData class]] || data.length == 0) {
-        return nil;
-    }
-
-    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (text.length == 0) {
-        text = [[NSString alloc] initWithData:data encoding:NSUTF16StringEncoding];
-    }
-    return text.length > 0 ? text : nil;
-}
-
-static NSString *PBStringByReplacingRegularExpression(NSString *text,
-                                                      NSString *pattern,
-                                                      NSString *replacement) {
-    if (text.length == 0 || pattern.length == 0) {
-        return text;
-    }
-
-    NSRegularExpression *expression =
-        [NSRegularExpression regularExpressionWithPattern:pattern
-                                                  options:0
-                                                    error:nil];
-    if (!expression) {
-        return text;
-    }
-
-    NSRange range = NSMakeRange(0, text.length);
-    return [expression stringByReplacingMatchesInString:text
-                                                options:0
-                                                  range:range
-                                           withTemplate:replacement ?: @""];
-}
-
-static NSString *PBStringByDecodingCommonHTMLEntities(NSString *text) {
-    if (text.length == 0) {
-        return text;
-    }
-
-    NSDictionary<NSString *, NSString *> *entities = @{
-        @"&nbsp;": @" ",
-        @"&#160;": @" ",
-        @"&lt;": @"<",
-        @"&gt;": @">",
-        @"&amp;": @"&",
-        @"&quot;": @"\"",
-        @"&#34;": @"\"",
-        @"&#39;": @"'",
-        @"&apos;": @"'"
-    };
-
-    NSMutableString *result = [text mutableCopy];
-    for (NSString *entity in entities) {
-        [result replaceOccurrencesOfString:entity
-                                 withString:entities[entity]
-                                    options:NSCaseInsensitiveSearch
-                                      range:NSMakeRange(0, result.length)];
-    }
-    return [result copy];
-}
-
-static NSString *PBStringByStrippingHTMLTags(NSString *html) {
-    if (html.length == 0) {
-        return html;
-    }
-
-    NSMutableString *result = [NSMutableString string];
-    BOOL insideTag = NO;
-    unichar quote = 0;
-    for (NSUInteger index = 0; index < html.length; index++) {
-        unichar character = [html characterAtIndex:index];
-        if (insideTag) {
-            if (quote != 0) {
-                if (character == quote) {
-                    quote = 0;
-                }
-                continue;
-            }
-            if (character == '"' || character == '\'') {
-                quote = character;
-                continue;
-            }
-            if (character == '>') {
-                insideTag = NO;
-            }
-            continue;
-        }
-
-        if (character == '<') {
-            insideTag = YES;
-            quote = 0;
-            continue;
-        }
-
-        [result appendFormat:@"%C", character];
-    }
-    return [result copy];
-}
-
-static NSString *PBPlainTextFromHTMLString(NSString *html) {
-    if (html.length == 0) {
-        return nil;
-    }
-
-    NSString *text = html;
-    text = PBStringByReplacingRegularExpression(text, @"(?is)<(script|style)[^>]*>.*?</\\1>", @"");
-    text = PBStringByReplacingRegularExpression(text, @"(?i)<br\\s*/?>", @"\n");
-    text = PBStringByReplacingRegularExpression(text, @"(?i)</(div|p|li|tr|h[1-6])\\s*>", @"\n");
-    text = PBStringByStrippingHTMLTags(text);
-    text = PBStringByDecodingCommonHTMLEntities(text);
-    text = [text stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"];
-    text = [text stringByReplacingOccurrencesOfString:@"\r" withString:@"\n"];
-    text = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    return text.length > 0 ? text : nil;
 }
 
 static NSInteger PBTypePriorityForCapture(NSString *type) {

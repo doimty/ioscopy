@@ -1,6 +1,7 @@
 #import "PBClipboardManager.h"
 #import "PBStorageManager.h"
 #import "PBInputBridgePrivate.h"
+#import "../Shared/PBPasteboardUtilities.h"
 #import "../Shared/PBPathUtilities.h"
 #import "../Shared/PBPreferenceKeys.h"
 #import <UIKit/UIKit.h>
@@ -153,44 +154,6 @@ static NSString *PBFingerprintForClipboardPayload(NSString *content,
     return @"";
 }
 
-static BOOL PBPasteboardTypeLooksImage(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower containsString:@"image"] ||
-           [lower containsString:@"png"] ||
-           [lower containsString:@"jpeg"] ||
-           [lower containsString:@"jpg"] ||
-           [lower containsString:@"heic"] ||
-           [lower containsString:@"heif"] ||
-           [lower containsString:@"tiff"] ||
-           [lower containsString:@"gif"];
-}
-
-static BOOL PBPasteboardTypeLooksHTML(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower containsString:@"html"];
-}
-
-static BOOL PBPasteboardTypeLooksPlainText(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return [lower isEqualToString:@"public.utf8-plain-text"] ||
-           [lower isEqualToString:@"public.plain-text"] ||
-           [lower isEqualToString:@"public.text"] ||
-           [lower containsString:@"plain-text"] ||
-           [lower containsString:@"utf8-plain-text"] ||
-           ([lower containsString:@"text"] && ![lower containsString:@"html"]);
-}
-
-static BOOL PBPasteboardTypeLooksText(NSString *type) {
-    NSString *lower = [type lowercaseString];
-    return !PBPasteboardTypeLooksHTML(type) &&
-           (PBPasteboardTypeLooksPlainText(type) ||
-            [lower containsString:@"string"] ||
-            [lower containsString:@"utf8"] ||
-            [lower isEqualToString:@"public.url"] ||
-            [lower isEqualToString:@"public.uri"] ||
-            [lower containsString:@"url"]);
-}
-
 static NSInteger PBPasteboardTypePriorityForPullCapture(NSString *type) {
     if ([type isEqualToString:@"public.png"]) {
         return 0;
@@ -237,122 +200,6 @@ static NSArray<NSString *> *PBSortedPasteboardTypesForPullCapture(NSArray *types
         }
         return [firstType compare:secondType ?: @""];
     }];
-}
-
-static NSString *PBTextFromData(NSData *data) {
-    if (![data isKindOfClass:[NSData class]] || data.length == 0) {
-        return nil;
-    }
-
-    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (text.length == 0) {
-        text = [[NSString alloc] initWithData:data encoding:NSUTF16StringEncoding];
-    }
-    return text.length > 0 ? text : nil;
-}
-
-static NSString *PBStringByReplacingRegularExpression(NSString *text,
-                                                       NSString *pattern,
-                                                       NSString *replacement) {
-    if (text.length == 0 || pattern.length == 0) {
-        return text;
-    }
-
-    NSRegularExpression *expression =
-        [NSRegularExpression regularExpressionWithPattern:pattern
-                                                  options:0
-                                                    error:nil];
-    if (!expression) {
-        return text;
-    }
-
-    NSRange range = NSMakeRange(0, text.length);
-    return [expression stringByReplacingMatchesInString:text
-                                                options:0
-                                                  range:range
-                                           withTemplate:replacement ?: @""];
-}
-
-static NSString *PBStringByDecodingCommonHTMLEntities(NSString *text) {
-    if (text.length == 0) {
-        return text;
-    }
-
-    NSDictionary<NSString *, NSString *> *entities = @{
-        @"&nbsp;": @" ",
-        @"&#160;": @" ",
-        @"&lt;": @"<",
-        @"&gt;": @">",
-        @"&amp;": @"&",
-        @"&quot;": @"\"",
-        @"&#34;": @"\"",
-        @"&#39;": @"'",
-        @"&apos;": @"'"
-    };
-
-    NSMutableString *result = [text mutableCopy];
-    for (NSString *entity in entities) {
-        [result replaceOccurrencesOfString:entity
-                                 withString:entities[entity]
-                                    options:NSCaseInsensitiveSearch
-                                      range:NSMakeRange(0, result.length)];
-    }
-    return [result copy];
-}
-
-static NSString *PBStringByStrippingHTMLTags(NSString *html) {
-    if (html.length == 0) {
-        return html;
-    }
-
-    NSMutableString *result = [NSMutableString string];
-    BOOL insideTag = NO;
-    unichar quote = 0;
-    for (NSUInteger index = 0; index < html.length; index++) {
-        unichar character = [html characterAtIndex:index];
-        if (insideTag) {
-            if (quote != 0) {
-                if (character == quote) {
-                    quote = 0;
-                }
-                continue;
-            }
-            if (character == '"' || character == '\'') {
-                quote = character;
-                continue;
-            }
-            if (character == '>') {
-                insideTag = NO;
-            }
-            continue;
-        }
-
-        if (character == '<') {
-            insideTag = YES;
-            quote = 0;
-            continue;
-        }
-
-        [result appendFormat:@"%C", character];
-    }
-    return [result copy];
-}
-
-static NSString *PBPlainTextFromHTMLString(NSString *html) {
-    if (html.length == 0) {
-        return nil;
-    }
-
-    NSString *text = html;
-    text = PBStringByReplacingRegularExpression(text, @"(?is)<(script|style)[^>]*>.*?</\\1>", @"");
-    text = PBStringByReplacingRegularExpression(text, @"(?i)<br\\s*/?>", @"\n");
-    text = PBStringByReplacingRegularExpression(text, @"(?i)</(div|p|li|tr|h[1-6])\\s*>", @"\n");
-    text = PBStringByStrippingHTMLTags(text);
-    text = PBStringByDecodingCommonHTMLEntities(text);
-    text = [text stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"];
-    text = [text stringByReplacingOccurrencesOfString:@"\r" withString:@"\n"];
-    text = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    return text.length > 0 ? text : nil;
 }
 
 static id PBObjectByPerformingSelector(id target, SEL selector) {
@@ -819,7 +666,7 @@ static void ocrIndexUpdated(CFNotificationCenterRef center,
 
     // Also poll periodically as a fallback (some changes aren't notified)
     if (!self.pollTimer) {
-        self.pollTimer = [NSTimer scheduledTimerWithTimeInterval:2.0
+        self.pollTimer = [NSTimer scheduledTimerWithTimeInterval:5.0
                                                           target:self
                                                         selector:@selector(pollPasteboard)
                                                         userInfo:nil

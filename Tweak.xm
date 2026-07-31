@@ -16,6 +16,7 @@
 #import "UI/PBMainViewController.h"
 #import "Manager/PBClipboardManager.h"
 #import "Manager/PBInputBridge.h"
+#import "Shared/PBPasteboardUtilities.h"
 #import "Shared/PBPathUtilities.h"
 #import "Shared/PBPreferenceKeys.h"
 
@@ -82,11 +83,6 @@ static void dismissClipboardView(CFNotificationCenterRef center,
             [vc dismissAnimated:YES];
         }
     });
-}
-
-static BOOL PBIsSpringBoardProcess(NSString *processName, NSString *bundleId) {
-    return [bundleId isEqualToString:@"com.apple.springboard"] ||
-           [processName isEqualToString:@"SpringBoard"];
 }
 
 static BOOL PBCurrentThreadAllowsPasteboardPolicyBypass(void) {

@@ -194,11 +194,18 @@ static NSString * const kDatabaseName = @"clipboard.db";
 }
 
 - (void)setupDatabase {
-    [self openDatabaseIfNeeded];
+    dispatch_sync(self.dbQueue, ^{
+        [self openDatabaseIfNeeded];
+    });
 }
 
 - (void)dealloc {
-    [self closeDatabase];
+    dispatch_sync(self.dbQueue, ^{
+        if (self.database) {
+            sqlite3_close(self.database);
+            self.database = NULL;
+        }
+    });
 }
 
 - (BOOL)isManagedMediaPath:(NSString *)path {
@@ -410,6 +417,24 @@ static NSString * const kDatabaseName = @"clipboard.db";
     return [self searchItemsWithQuery:query limit:limit includeOCR:YES];
 }
 
+/// Escapes SQLite LIKE wildcards (%, _, \) in a user-supplied search string so that
+/// they match literally. Must be paired with `ESCAPE '\\'` in the LIKE clause.
+static NSString *PBSQLEscapeLikePattern(NSString *query) {
+    if (query.length == 0) {
+        return @"";
+    }
+    NSMutableString *escaped = [NSMutableString stringWithCapacity:query.length + 4];
+    for (NSUInteger i = 0; i < query.length; i++) {
+        unichar c = [query characterAtIndex:i];
+        if (c == '%' || c == '_' || c == '\\') {
+            [escaped appendFormat:@"\\%C", c];
+        } else {
+            [escaped appendFormat:@"%C", c];
+        }
+    }
+    return escaped;
+}
+
 - (NSArray<PBClipboardItem *> *)searchItemsWithQuery:(NSString *)query
                                                limit:(NSInteger)limit
                                           includeOCR:(BOOL)includeOCR {
@@ -419,15 +444,15 @@ static NSString * const kDatabaseName = @"clipboard.db";
 
         const char *sql = includeOCR
             ? "SELECT * FROM clipboard_items "
-              "WHERE content LIKE ? OR source_app_name LIKE ? OR ocr_text LIKE ? "
+              "WHERE content LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\' OR ocr_text LIKE ? ESCAPE '\\' "
               "ORDER BY is_pinned DESC, timestamp DESC LIMIT ?"
             : "SELECT * FROM clipboard_items "
-              "WHERE content LIKE ? OR source_app_name LIKE ? "
+              "WHERE content LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\' "
               "ORDER BY is_pinned DESC, timestamp DESC LIMIT ?";
 
         sqlite3_stmt *stmt;
         if (sqlite3_prepare_v2(self.database, sql, -1, &stmt, NULL) == SQLITE_OK) {
-            NSString *pattern = [NSString stringWithFormat:@"%%%@%%", query];
+            NSString *pattern = [NSString stringWithFormat:@"%%%@%%", PBSQLEscapeLikePattern(query)];
             sqlite3_bind_text(stmt, 1, [pattern UTF8String], -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(stmt, 2, [pattern UTF8String], -1, SQLITE_TRANSIENT);
             if (includeOCR) {

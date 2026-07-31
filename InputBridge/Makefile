@@ -6,6 +6,7 @@ IOSCOPY_FORCE_REAL_PREFERENCES_PATH ?= 0
 TWEAK_NAME = iOSCopyInputBridge
 
 iOSCopyInputBridge_FILES = InputBridge.xm \
+	../Shared/PBPasteboardUtilities.m \
 	../Manager/PBInputBridge.m \
 	../Manager/PBInputBridgeAppExecutor.m \
 	../Manager/PBInputBridgeImagePasteboard.m \
